@@ -1,9 +1,8 @@
 package com.api.process_scheduling.controllers;
 
-import com.api.process_scheduling.dto.ScheduleResponse;
-import com.api.process_scheduling.entities.Process;
+import com.api.process_scheduling.dto.SimulationConfigMessage;
 
 public interface ProcessSchedulerController {
 
-    ScheduleResponse scheduleProcesses(Process process) throws InterruptedException;
+  void startSimulation(SimulationConfigMessage request);
 }
