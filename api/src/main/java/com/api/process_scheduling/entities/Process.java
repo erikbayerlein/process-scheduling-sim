@@ -1,39 +1,43 @@
 package com.api.process_scheduling.entities;
 
-import com.api.process_scheduling.models.ProcessStatus;
-import lombok.*;
+import com.api.process_scheduling.enums.ProcessStatus;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class Process {
-    static int nextId = 0;
 
-    int pid;
+  static Long nextId = 0L;
 
-    int creationTime;
-    int duration;
-    int staticPriority;
+  Long pid;
 
-    int remainingTime;
-    ProcessStatus status;
-    int startTime;
-    int waitingTime;
-    int turnaroundTime;
+  int creationTime;
+  int duration;
+  int staticPriority;
 
-    Process(int creationTime, int duration, int staticPriority) {
-        this.pid = nextId++;
+  int remainingTime;
+  ProcessStatus status;
+  int startTime;
+  int waitingTime;
+  int turnaroundTime;
 
-        this.creationTime = creationTime;
-        this.duration = duration;
-        this.staticPriority = staticPriority;
+  public Process(int creationTime, int duration, int staticPriority) {
+    this.pid = nextId++;
 
-        this.remainingTime = duration;
-        this.status = ProcessStatus.READY;
-        this.waitingTime = 0;
-        this.turnaroundTime = 0;
-    }
+    this.creationTime = creationTime;
+    this.duration = duration;
+    this.staticPriority = staticPriority;
+
+    this.remainingTime = duration;
+    this.status = ProcessStatus.READY;
+    this.waitingTime = 0;
+    this.turnaroundTime = 0;
+  }
 
 
 }

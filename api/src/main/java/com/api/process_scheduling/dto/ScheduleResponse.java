@@ -10,5 +10,6 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ScheduleResponse {
-    private String message;
+
+  private String message;
 }

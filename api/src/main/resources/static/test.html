@@ -1,34 +1,77 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 </head>
 <body>
 <button onclick="connect()">Connect</button>
 <button onclick="sendMessage()">Send Test Message</button>
+<h2>Process Scheduler Results:</h2>
 <div id="messages"></div>
 
+
+<h2>Updates:</h2>
+<div id="updates"></div>
+
 <script>
-    let stompClient = null;
+  let stompClient = null;
 
-    function connect() {
-        const socket = new SockJS('/ws');
-        stompClient = Stomp.over(socket);
-        stompClient.connect({}, function(frame) {
-            console.log('Connected: ' + frame);
-            stompClient.subscribe('/process-scheduler/results', function(message) {
-                document.getElementById('messages').innerHTML += '<p>' + message.body + '</p>';
-            });
-        });
+  function connect() {
+    const socket = new SockJS('http://localhost:8080/ws');
+    stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function (frame) {
+      console.log('Connected: ' + frame);
+
+      // Subscribe to process-scheduler results
+      stompClient.subscribe('/process-scheduler/status', function (message) {
+        const body = JSON.parse(message.body);
+        appendMessage("Result: " + body);
+      });
+
+      stompClient.subscribe('/process-scheduler/updates', function (message) {
+        const body = JSON.parse(message.body);
+        updatesMessage(JSON.stringify(body));
+      });
+    });
+  }
+
+  function sendMessage() {
+    if (!stompClient || !stompClient.connected) {
+      alert("Not connected to WebSocket server.");
+      return;
     }
 
-    function sendMessage() {
-        stompClient.send("/app/schedule", {}, JSON.stringify({
-            'processId': 1,
-            'burstTime': 10
-        }));
-    }
+    const payload = {
+      algorithm: "FCFS",
+      processes: [
+        { creationTime: 0, duration: 2, staticPriority: 0 },
+        { creationTime: 0, duration: 2, staticPriority: 1 }
+      ],
+      config: {
+        quantum: 1,
+        aging: 1
+      }
+    };
+
+    stompClient.send("/app/start", {}, JSON.stringify(payload));
+    appendMessage("Sent: " + JSON.stringify(payload));
+  }
+
+  function appendMessage(msg) {
+    const messagesDiv = document.getElementById('messages');
+    const p = document.createElement("p");
+    p.textContent = msg;
+    messagesDiv.appendChild(p);
+  }
+
+  function updatesMessage(msg) {
+    const messagesDiv = document.getElementById('updates');
+    const p = document.createElement("p");
+    p.textContent = msg;
+    messagesDiv.appendChild(p);
+  }
 </script>
 </body>
 </html>
