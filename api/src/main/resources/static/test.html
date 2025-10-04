@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<button onclick="connect()">Connect</button>
+<button onclick="sendMessage()">Send Test Message</button>
+<div id="messages"></div>
+
+<script>
+    let stompClient = null;
+
+    function connect() {
+        const socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function(frame) {
+            console.log('Connected: ' + frame);
+            stompClient.subscribe('/process-scheduler/results', function(message) {
+                document.getElementById('messages').innerHTML += '<p>' + message.body + '</p>';
+            });
+        });
+    }
+
+    function sendMessage() {
+        stompClient.send("/app/schedule", {}, JSON.stringify({
+            'processId': 1,
+            'burstTime': 10
+        }));
+    }
+</script>
+</body>
+</html>
