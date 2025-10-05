@@ -1,77 +1,267 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
-</head>
-<body>
-<button onclick="connect()">Connect</button>
-<button onclick="sendMessage()">Send Test Message</button>
-<h2>Process Scheduler Results:</h2>
-<div id="messages"></div>
-
-
-<h2>Updates:</h2>
-<div id="updates"></div>
-
-<script>
-  let stompClient = null;
-
-  function connect() {
-    const socket = new SockJS('http://localhost:8080/ws');
-    stompClient = Stomp.over(socket);
-
-    stompClient.connect({}, function (frame) {
-      console.log('Connected: ' + frame);
-
-      // Subscribe to process-scheduler results
-      stompClient.subscribe('/process-scheduler/status', function (message) {
-        const body = JSON.parse(message.body);
-        appendMessage("Result: " + body);
-      });
-
-      stompClient.subscribe('/process-scheduler/updates', function (message) {
-        const body = JSON.parse(message.body);
-        updatesMessage(JSON.stringify(body));
-      });
-    });
-  }
-
-  function sendMessage() {
-    if (!stompClient || !stompClient.connected) {
-      alert("Not connected to WebSocket server.");
-      return;
-    }
-
-    const payload = {
-      algorithm: "FCFS",
-      processes: [
-        { creationTime: 0, duration: 2, staticPriority: 0 },
-        { creationTime: 0, duration: 2, staticPriority: 1 }
-      ],
-      config: {
-        quantum: 1,
-        aging: 1
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Process Scheduler STOMP Client (Native WS)</title>
+    <!-- Load Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom styles to ensure the modal is always on top */
+      .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: none; /* Hidden by default */
+        align-items: center;
+        justify-content: center;
       }
-    };
+      .modal-content {
+        animation: slide-in 0.3s ease-out;
+      }
+      @keyframes slide-in {
+        from {
+          opacity: 0;
+          transform: translateY(-50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+    <!-- Load STOMP JS (The library can wrap both SockJS and native WebSocket objects) -->
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+  </head>
+  <body class="bg-gray-50 p-6 font-sans antialiased min-h-screen">
+    <div class="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-8">
+      <h1 class="text-3xl font-bold text-indigo-700 mb-6 border-b pb-2">
+        STOMP Process Scheduler Client
+      </h1>
 
-    stompClient.send("/app/start", {}, JSON.stringify(payload));
-    appendMessage("Sent: " + JSON.stringify(payload));
-  }
+      <!-- Controls -->
+      <div class="flex space-x-4 mb-8">
+        <button
+          id="connect-btn"
+          onclick="connect()"
+          class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 active:scale-[0.98]"
+        >
+          Connect to WS
+        </button>
+        <button
+          id="send-btn"
+          onclick="sendMessage()"
+          disabled
+          class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Send Test Message
+        </button>
+      </div>
 
-  function appendMessage(msg) {
-    const messagesDiv = document.getElementById('messages');
-    const p = document.createElement("p");
-    p.textContent = msg;
-    messagesDiv.appendChild(p);
-  }
+      <div class="grid md:grid-cols-2 gap-8">
+        <!-- Process Scheduler Results -->
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-1">
+            Process Scheduler Results:
+            <span id="status-indicator" class="text-red-500 text-sm ml-2">Disconnected</span>
+          </h2>
+          <div
+            id="messages"
+            class="space-y-2 bg-gray-100 p-4 rounded-lg h-64 overflow-y-auto border border-gray-200"
+          >
+            <p class="text-gray-500 text-sm">Awaiting connection...</p>
+          </div>
+        </div>
 
-  function updatesMessage(msg) {
-    const messagesDiv = document.getElementById('updates');
-    const p = document.createElement("p");
-    p.textContent = msg;
-    messagesDiv.appendChild(p);
-  }
-</script>
-</body>
+        <!-- Real-time Updates -->
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-1">Real-time Updates:</h2>
+          <div
+            id="updates"
+            class="space-y-2 bg-gray-100 p-4 rounded-lg h-64 overflow-y-auto border border-gray-200"
+          >
+            <p class="text-gray-500 text-sm">Updates will appear here...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Modal for Notifications -->
+    <div id="custom-modal" class="modal">
+      <div
+        class="modal-content bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-transform"
+      >
+        <h3 class="text-lg font-bold text-red-600 mb-3" id="modal-title">Notification</h3>
+        <p id="modal-message" class="text-gray-700 mb-4"></p>
+        <button
+          onclick="closeModal()"
+          class="w-full bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition duration-150"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    <script>
+      let stompClient = null;
+      const ENDPOINT_URL = "ws://localhost:8080/ws"; // Targetting the native WS endpoint
+
+      // --- UI Helper Functions ---
+
+      function showModal(title, message) {
+        document.getElementById("modal-title").textContent = title;
+        document.getElementById("modal-message").textContent = message;
+        document.getElementById("custom-modal").style.display = "flex";
+      }
+
+      function closeModal() {
+        document.getElementById("custom-modal").style.display = "none";
+      }
+
+      function setStatus(isConnected) {
+        const indicator = document.getElementById("status-indicator");
+        const sendBtn = document.getElementById("send-btn");
+
+        if (isConnected) {
+          indicator.textContent = "Connected ✅";
+          indicator.className = "text-green-600 text-sm ml-2";
+          sendBtn.disabled = false;
+        } else {
+          indicator.textContent = "Disconnected ❌";
+          indicator.className = "text-red-500 text-sm ml-2";
+          sendBtn.disabled = true;
+        }
+      }
+
+      function appendMessage(msg) {
+        const messagesDiv = document.getElementById("messages");
+        const p = document.createElement("p");
+        p.className =
+          "text-sm text-gray-700 p-2 bg-white rounded-md shadow-sm border border-gray-100";
+        p.textContent = msg;
+        messagesDiv.prepend(p);
+        // Remove initial placeholder message
+        if (messagesDiv.querySelector(".text-gray-500")) {
+          messagesDiv.innerHTML = "";
+          messagesDiv.appendChild(p);
+        }
+      }
+
+      function updatesMessage(msg) {
+        const updatesDiv = document.getElementById("updates");
+        const p = document.createElement("p");
+        p.className = "text-xs text-indigo-700 p-1 bg-indigo-50 rounded-md";
+        p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        updatesDiv.prepend(p);
+        // Remove initial placeholder message
+        if (updatesDiv.querySelector(".text-gray-500")) {
+          updatesDiv.innerHTML = "";
+          updatesDiv.appendChild(p);
+        }
+      }
+
+      // --- WebSocket Logic ---
+
+      function connect() {
+        // Check if already connected or connecting
+        if (stompClient && stompClient.connected) {
+          showModal("Connection Status", "Client is already connected.");
+          return;
+        }
+
+        try {
+          // 1. Use native WebSocket
+          console.log(`Attempting to connect to ${ENDPOINT_URL}...`);
+          const socket = new WebSocket(ENDPOINT_URL);
+
+          // 2. Wrap the native socket with STOMP
+          stompClient = Stomp.over(socket);
+
+          // Optional: Disable logging for cleaner console (uncomment during production)
+          // stompClient.debug = null;
+
+          stompClient.connect(
+            {},
+            function (frame) {
+              console.log("Connected: " + frame);
+              setStatus(true);
+
+              // Subscribe to process-scheduler results
+              stompClient.subscribe("/process-scheduler/status", function (message) {
+                try {
+                  const body = JSON.parse(message.body);
+                  appendMessage("Result: " + JSON.stringify(body, null, 2));
+                } catch (e) {
+                  appendMessage("Result: " + message.body);
+                }
+              });
+
+              // Subscribe to real-time updates
+              stompClient.subscribe("/process-scheduler/updates", function (message) {
+                try {
+                  const body = JSON.parse(message.body);
+                  updatesMessage(JSON.stringify(body));
+                } catch (e) {
+                  updatesMessage(message.body);
+                }
+              });
+
+              showModal("Connected", "Successfully connected to the STOMP server.");
+            },
+            function (error) {
+              // Connection error handler
+              console.error("STOMP Connection Error: " + error);
+              setStatus(false);
+              showModal(
+                "Connection Error",
+                "Failed to connect to the STOMP server. Ensure the Java application is running on " +
+                  ENDPOINT_URL +
+                  " and the server allows native WebSocket connections.",
+              );
+            },
+          );
+        } catch (e) {
+          console.error("WebSocket Initialization Error:", e);
+          showModal(
+            "Initialization Error",
+            "Could not initialize WebSocket connection. Error: " + e.message,
+          );
+        }
+      }
+
+      function sendMessage() {
+        if (!stompClient || !stompClient.connected) {
+          showModal("Send Error", "Not connected to WebSocket server. Please connect first.");
+          return;
+        }
+
+        const payload = {
+          algorithm: "FCFS",
+          processes: [
+            { creationTime: 0, duration: 2, staticPriority: 0 },
+            { creationTime: 0, duration: 2, staticPriority: 1 },
+          ],
+          config: {
+            quantum: 1,
+            aging: 1,
+          },
+        };
+
+        const payloadString = JSON.stringify(payload);
+
+        try {
+          // Send message to the /app prefix
+          stompClient.send("/app/start", { "content-type": "application/json" }, payloadString);
+          appendMessage("Sent: " + payloadString);
+        } catch (e) {
+          console.error("Error sending message:", e);
+          showModal("Send Failure", "An error occurred while trying to send the message.");
+        }
+      }
+    </script>
+  </body>
 </html>
