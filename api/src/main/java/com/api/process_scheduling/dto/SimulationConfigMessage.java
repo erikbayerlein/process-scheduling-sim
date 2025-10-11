@@ -1,5 +1,6 @@
 package com.api.process_scheduling.dto;
 
+import com.api.process_scheduling.enums.Algorithms;
 import java.util.List;
 
 
@@ -9,7 +10,7 @@ import java.util.List;
  * @param processes uma lista de processos
  * @param config    configuração global
  */
-public record SimulationConfigMessage(String algorithm, List<ProcessDTOMessage> processes,
+public record SimulationConfigMessage(Algorithms algorithm, List<ProcessDTOMessage> processes,
                                       GlobalConfig config) {
 
   /**
