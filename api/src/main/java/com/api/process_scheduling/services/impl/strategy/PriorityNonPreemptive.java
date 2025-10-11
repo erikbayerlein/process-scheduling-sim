@@ -22,7 +22,7 @@ public class PriorityNonPreemptive implements schedulingAlgorithm {
    * inicializa a fila de processos prontos com um comparador que ordena os processos pela
    * prioridade em ordem decrescente (maior prioridade primeiro)
    */
-  PriorityNonPreemptive() {
+  public PriorityNonPreemptive() {
     this.readyQueue = new PriorityQueue<>(
         Collections.reverseOrder(Comparator.comparingInt(Process::getStaticPriority)));
   }

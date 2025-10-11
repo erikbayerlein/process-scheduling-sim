@@ -17,7 +17,7 @@ public class PriorityPreemptive implements schedulingAlgorithm {
   private final PriorityQueue<Process> readyQueue;
   private Process currentProcess = null;
 
-  PriorityPreemptive() {
+  public PriorityPreemptive() {
 
     this.readyQueue = new PriorityQueue<>(
         Collections.reverseOrder(Comparator.comparingInt(Process::getStaticPriority)));

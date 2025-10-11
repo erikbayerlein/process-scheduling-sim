@@ -16,7 +16,7 @@ public class SRTF implements schedulingAlgorithm {
   private final PriorityQueue<Process> readyQueue;
   private Process currentProcess = null;
 
-  SRTF() {
+  public SRTF() {
     this.readyQueue = new PriorityQueue<>(Comparator.comparingInt(Process::getRemainingTime));
   }
 

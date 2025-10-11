@@ -19,7 +19,7 @@ public class RoundRobin implements schedulingAlgorithm {
   private int currentCycleTime = 0;
 
 
-  RoundRobin(int quantum) {
+  public RoundRobin(int quantum) {
     if (quantum <= 0) {
       throw new IllegalArgumentException("Quantum deve ser um valor positivo.");
     }
