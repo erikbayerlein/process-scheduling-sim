@@ -67,7 +67,7 @@ class ProcessSchedulerControllerImplTest {
       }
     });
 
-    Process testProcess = new Process();
+    Process testProcess = new Process(1, 1, 1);
 
     session.send("/app/schedule", testProcess);
 
