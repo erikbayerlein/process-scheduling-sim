@@ -90,4 +90,28 @@ class RoundRobinPriorityAgingUnitTests {
     assertEquals(p_low_aging, next,
         "O aging deveria aumentar a prioridade de p_low_aging e causar a preempção");
   }
+
+  @Test
+  @DisplayName("AGING: Deve resetar a prioridade ao ser selecionado")
+  void aging_ShouldResetPriorityWhenSelected() {
+    // p_low (Prio 5) começa a executar
+    scheduler.addProcess(p_low);
+    scheduler.addProcess(p_mid);
+    p_mid.setRemainingTime(1);
+    Process current = scheduler.selectNextProcess().getObject();
+    assertEquals(p_mid, current);
+
+    // Simula várias chamadas para aplicar aging
+    for (int i = 0; i < 5; i++) {
+      scheduler.applyAgingToReady();
+    }
+    assertEquals(11, p_low.getDynamicPriority(), "A prioridade de p_low deveria ter aumentado para 11 devido ao aging");
+
+    // Na próxima seleção, o aging deve ter aumentado a prioridade de p_low
+    Process next = scheduler.selectNextProcess().getObject();
+    assertEquals(p_low, next, "p_low deveria ser selecionado novamente");
+
+    // Verifica se a prioridade foi resetada
+    assertEquals(5, p_low.getDynamicPriority(), "A prioridade de p_low deveria ter sido resetada para 5");
+  }
 }
