@@ -4,18 +4,16 @@ import com.api.process_scheduling.controllers.ProcessSchedulerController;
 import com.api.process_scheduling.dto.SimulationConfigMessage;
 import com.api.process_scheduling.services.SchedulerService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class ProcessSchedulerControllerImpl implements ProcessSchedulerController {
-
-  private final Logger log = LoggerFactory.getLogger(ProcessSchedulerControllerImpl.class);
 
   private final SchedulerService schedulerService;
   private final SimpMessagingTemplate messagingTemplate;
@@ -23,18 +21,17 @@ public class ProcessSchedulerControllerImpl implements ProcessSchedulerControlle
   @Override
   @MessageMapping("/start")
   public void startSimulation(@RequestBody SimulationConfigMessage request) {
-    this.log.debug("Received START_SIMULATION request:");
+    log.debug("Received START_SIMULATION request:");
 
     var setupResult = schedulerService.setupSimulation(request, messagingTemplate);
     if (setupResult.isFailure()) {
-      this.log.error("Error during simulation setup: {}", setupResult.getErrors());
+      log.error("Error during simulation setup: {}", setupResult.getErrors());
       messagingTemplate.convertAndSend("/process-scheduler/errors",
           "Error during simulation setup: " + setupResult.getErrors());
       return;
     }
 
     schedulerService.runSimulation();
-    this.log.info("Simulation completed successfully.");
+    log.info("Simulation completed successfully.");
   }
-
 }

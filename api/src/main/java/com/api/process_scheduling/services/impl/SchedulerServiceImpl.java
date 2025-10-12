@@ -15,6 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -22,11 +23,11 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Data
+@Slf4j
 public class SchedulerServiceImpl implements SchedulerService {
 
   final static int MAX_TIME_SAFETY_LIMIT = 100; // tempo máximo de simulação em unidades de tempo
-  private final Logger logger = LoggerFactory.getLogger(SchedulerServiceImpl.class);
-  private Integer nextProcessIndex = 0;
+  private int nextProcessIndex = 0;
   private List<Process> processQueue = new LinkedList<>();
   private schedulingAlgorithm algorithm;
   private SimpMessagingTemplate messagingTemplate;
@@ -43,9 +44,23 @@ public class SchedulerServiceImpl implements SchedulerService {
     return this.configureSimulation(template, message);
   }
 
+  public void cleanUp() {
+    try {
+      this.nextProcessIndex = 0;
+      this.algorithm = null;
+      this.messagingTemplate = null;
+      this.numOfContextSwitches = 0;
+      this.completedProcesses = 0;
+      this.totalProcesses = 0;
+    } catch (Exception e) {
+      log.error("Error during cleanup: {}", e.getMessage());
+      this.sendError("Error during cleanup: " + e.getMessage());
+    }
+  }
+
   @Override
   public void runSimulation() {
-    this.logger.info("Starting simulation");
+    log.info("Starting simulation");
     int time = 0;
 
     Process previousProcess = null;
@@ -55,7 +70,7 @@ public class SchedulerServiceImpl implements SchedulerService {
       // 1. processos a serem criados neste ciclo
       var createProcessResult = this.createProcesses(time);
       if (createProcessResult.isFailure()) {
-        this.logger.error("Failed to create processes: {}", createProcessResult.getErrors());
+        log.error("Failed to create processes: {}", createProcessResult.getErrors());
         this.sendError(createProcessResult.getErrors());
         return;
       }
@@ -63,7 +78,7 @@ public class SchedulerServiceImpl implements SchedulerService {
       // 2. selecionar processo a ser executado
       var nextProcessResult = this.algorithm.selectNextProcess();
       if (nextProcessResult.isFailure()) {
-        this.logger.error("Failed to select next process: {}", nextProcessResult.getErrors());
+        log.error("Failed to select next process: {}", nextProcessResult.getErrors());
         this.sendError(nextProcessResult.getErrors());
         return;
       }
@@ -71,7 +86,7 @@ public class SchedulerServiceImpl implements SchedulerService {
 
       if (Objects.isNull(nextProcess)) {
         if (Objects.nonNull(previousProcess)) {
-          this.logger.debug("context switch from process {} to idle",
+          log.debug("context switch from process {} to idle",
               previousProcess.getPid());
           this.numOfContextSwitches++;
         }
@@ -84,7 +99,7 @@ public class SchedulerServiceImpl implements SchedulerService {
       // 3. verificar se houve troca de contexto
       if (Objects.isNull(previousProcess) || !Objects.equals(
           previousProcess.getPid(), nextProcess.getPid())) {
-        this.logger.debug("context switch from process {} to process {}",
+        log.debug("context switch from process {} to process {}",
             Objects.isNull(previousProcess) ? "null" : previousProcess.getPid(),
             nextProcess.getPid());
         this.numOfContextSwitches++;
@@ -104,7 +119,7 @@ public class SchedulerServiceImpl implements SchedulerService {
         completedProcesses++;
         nextProcess.setTurnaroundTime(time + 1 - nextProcess.getCreationTime());
         nextProcess.setWaitingTime(nextProcess.getTurnaroundTime() - nextProcess.getDuration());
-        this.logger.info("Process {} terminated at time {}", nextProcess.getPid(), time + 1);
+        log.info("Process {} terminated at time {}", nextProcess.getPid(), time + 1);
 
         // envio de evento de término
         this.sendCompleteEvent(nextProcess);
@@ -129,7 +144,7 @@ public class SchedulerServiceImpl implements SchedulerService {
     }
 
     if (time > MAX_TIME_SAFETY_LIMIT) {
-      this.logger.warn("Max simulation time reached, terminating simulation");
+      log.warn("Max simulation time reached, terminating simulation");
     }
 
     // calcular métricas finais
@@ -142,12 +157,13 @@ public class SchedulerServiceImpl implements SchedulerService {
 
     this.sendSimulationCompleteEvent(averageTurnaroundTime, averageWaitingTime);
 
+    this.cleanUp();
   }
 
 
   private Result<Void> configureSimulation(SimpMessagingTemplate messageTemplate,
       SimulationConfigMessage message) {
-    this.logger.debug("Configuring simulation with message: {}", message);
+    log.debug("Configuring simulation with message: {}", message);
 
     this.messagingTemplate = messageTemplate;
 
@@ -157,15 +173,15 @@ public class SchedulerServiceImpl implements SchedulerService {
       return Result.failure(algorithmResult.getErrors());
     }
     this.algorithm = algorithmResult.getObject();
-    this.logger.info("Simulation configured with algorithm: {}", message.algorithm());
+    log.info("Simulation configured with algorithm: {}", message.algorithm());
 
-    this.logger.debug("initializing processes");
+    log.debug("initializing processes");
 
     this.processQueue = message.processes().stream()
         .map(p -> new Process(p.creationTime(), p.duration(), p.staticPriority()))
         .sorted(Comparator.comparingInt(Process::getCreationTime)).toList();
 
-    this.logger.info("Initialized {} processes", this.processQueue.size());
+    log.info("Initialized {} processes", this.processQueue.size());
     return Result.success(null);
   }
 
@@ -213,7 +229,6 @@ public class SchedulerServiceImpl implements SchedulerService {
     });
   }
 
-
   private void sendSimulationCompleteEvent(double averageTurnaroundTime,
       double averageWaitingTime) {
     var event = SimulationCompletedEvent.builder()
@@ -224,7 +239,6 @@ public class SchedulerServiceImpl implements SchedulerService {
 
     this.messagingTemplate.convertAndSend("/process-scheduler/simulation/completed", event);
   }
-
 
   private void sendCompleteEvent(Process process) {
     var event = ProcessCompleteEvent.builder()
