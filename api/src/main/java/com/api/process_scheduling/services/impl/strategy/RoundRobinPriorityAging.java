@@ -36,9 +36,12 @@ public class RoundRobinPriorityAging implements schedulingAlgorithm {
     }
 
     // Reordena a fila de prontos após o envelhecimento
+    // talvez nao seja necessario, pois incrementa em todos 1, e quando um novo elemento entra, ele ja é colocado na posicao correta
+    /*
     var reorderedQueue = new PriorityQueue<>(this.readyQueue);
     this.readyQueue.clear();
     this.readyQueue.addAll(reorderedQueue);
+     */
   }
 
   @Override
@@ -80,6 +83,7 @@ public class RoundRobinPriorityAging implements schedulingAlgorithm {
     }
 
     this.applyAgingToReady();
+    this.currentProcess.resetDynamicPriority();
     return Result.success(this.currentProcess);
   }
 }
