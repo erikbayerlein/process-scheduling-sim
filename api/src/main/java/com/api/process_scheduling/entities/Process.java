@@ -71,7 +71,8 @@ public class Process {
   @Override
   public String toString() {
     return "Processo[PID=" + pid + ", Criação=" + creationTime + ", Duração=" + duration
-        + ", Restante=" + remainingTime + ", Prio=" + staticPriority + "]";
+        + ", Restante=" + remainingTime + ", Prio=" + dynamicPriority + ", Status=" + status + "]";
+
   }
 
 

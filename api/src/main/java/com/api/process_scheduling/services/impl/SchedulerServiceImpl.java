@@ -1,5 +1,7 @@
 package com.api.process_scheduling.services.impl;
 
+import com.api.process_scheduling.dto.ProcessCompleteEvent;
+import com.api.process_scheduling.dto.SimulationCompletedEvent;
 import com.api.process_scheduling.dto.SimulationConfigMessage;
 import com.api.process_scheduling.dto.StatusUpdateEvent;
 import com.api.process_scheduling.entities.Process;
@@ -12,21 +14,136 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
+@Data
 public class SchedulerServiceImpl implements SchedulerService {
 
+  final static int MAX_TIME_SAFETY_LIMIT = 100; // tempo máximo de simulação em unidades de tempo
   private final Logger logger = LoggerFactory.getLogger(SchedulerServiceImpl.class);
   private Integer nextProcessIndex = 0;
   private List<Process> processQueue = new LinkedList<>();
   private schedulingAlgorithm algorithm;
   private SimpMessagingTemplate messagingTemplate;
+  private int numOfContextSwitches = 0;
 
-  private int numOfcontextSwitches = 0;
+  private int completedProcesses = 0;
+  private int totalProcesses = 0;
+
+  @Override
+  public Result<Void> setupSimulation(SimulationConfigMessage message,
+      SimpMessagingTemplate template) {
+    this.completedProcesses = 0;
+    this.totalProcesses = message.processes().size();
+    return this.configureSimulation(template, message);
+  }
+
+  @Override
+  public void runSimulation() {
+    this.logger.info("Starting simulation");
+    int time = 0;
+
+    Process previousProcess = null;
+
+    // verificar se posso incrementar o tempo aqui time++
+    while (this.completedProcesses < this.totalProcesses && time <= MAX_TIME_SAFETY_LIMIT) {
+      // 1. processos a serem criados neste ciclo
+      var createProcessResult = this.createProcesses(time);
+      if (createProcessResult.isFailure()) {
+        this.logger.error("Failed to create processes: {}", createProcessResult.getErrors());
+        this.sendError(createProcessResult.getErrors());
+        return;
+      }
+
+      // 2. selecionar processo a ser executado
+      var nextProcessResult = this.algorithm.selectNextProcess();
+      if (nextProcessResult.isFailure()) {
+        this.logger.error("Failed to select next process: {}", nextProcessResult.getErrors());
+        this.sendError(nextProcessResult.getErrors());
+        return;
+      }
+      var nextProcess = nextProcessResult.getObject();
+
+      if (Objects.isNull(nextProcess)) {
+        if (Objects.nonNull(previousProcess)) {
+          this.logger.debug("context switch from process {} to idle",
+              previousProcess.getPid());
+          this.numOfContextSwitches++;
+        }
+
+        previousProcess = null;
+        time++;
+        continue;
+      }
+
+      // 3. verificar se houve troca de contexto
+      if (Objects.isNull(previousProcess) || !Objects.equals(
+          previousProcess.getPid(), nextProcess.getPid())) {
+        this.logger.debug("context switch from process {} to process {}",
+            Objects.isNull(previousProcess) ? "null" : previousProcess.getPid(),
+            nextProcess.getPid());
+        this.numOfContextSwitches++;
+      }
+
+      // 4. executar o processo selecionado
+      nextProcess.execute();
+
+      // 5. atualizar o estado dos processos (finalizados, prontos, etc)
+      // e metadados (waiting time, turnaround time, etc)
+
+      this.updateAllProcessStatuses(nextProcess);
+
+      // se o processo atual terminou, calcula o turnaround time
+
+      if (nextProcess.getStatus() == ProcessStatus.TERMINATED) {
+        completedProcesses++;
+        nextProcess.setTurnaroundTime(time + 1 - nextProcess.getCreationTime());
+        nextProcess.setWaitingTime(nextProcess.getTurnaroundTime() - nextProcess.getDuration());
+        this.logger.info("Process {} terminated at time {}", nextProcess.getPid(), time + 1);
+
+        // envio de evento de término
+        this.sendCompleteEvent(nextProcess);
+      }
+
+      // 6. enviar atualização de status via WebSocket
+      this.sendStatusUpdateEvent(
+          time,
+          nextProcess.getPid(),
+          this.processQueue.stream().filter(p -> p.getStatus() == ProcessStatus.READY).toList()
+      );
+
+      // 7. incrementar o tempo
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+
+      previousProcess = nextProcess;
+      time++;
+    }
+
+    if (time > MAX_TIME_SAFETY_LIMIT) {
+      this.logger.warn("Max simulation time reached, terminating simulation");
+    }
+
+    // calcular métricas finais
+    double averageWaitingTime = this.processQueue.stream()
+        .mapToInt(Process::getWaitingTime)
+        .average().orElse(0.0);
+    double averageTurnaroundTime = this.processQueue.stream()
+        .mapToInt(Process::getTurnaroundTime)
+        .average().orElse(0.0);
+
+    this.sendSimulationCompleteEvent(averageTurnaroundTime, averageWaitingTime);
+
+  }
+
 
   private Result<Void> configureSimulation(SimpMessagingTemplate messageTemplate,
       SimulationConfigMessage message) {
@@ -69,62 +186,71 @@ public class SchedulerServiceImpl implements SchedulerService {
     return Result.success(null);
   }
 
-  @Override
-  public void runSimulation(SimulationConfigMessage message,
-      SimpMessagingTemplate messagingTemplate) {
-    this.logger.info("Starting simulation with config: {}", message);
-    int time = 0;
-
-    var configResult = this.configureSimulation(messagingTemplate, message);
-    if (configResult.isFailure()) {
-      this.logger.error("Failed to configure simulation: {}", configResult.getErrors());
-      this.sendError(configResult.getErrors());
-      return;
-    }
-    Process previousProcess = null;
-
-    // TODO: replace 10 with a dynamic value
-    while (time < 10) {
-      var creationResult = this.createProcesses(time);
-      if (creationResult.isFailure()) {
-        this.logger.error("Failed to turn processes ready: {}", creationResult.getErrors());
-        this.sendError(creationResult.getErrors());
+  private void updateAllProcessStatuses(Process currentProcess) {
+    this.processQueue.forEach(p -> {
+      // Se um processo já está terminado, seu estado é final. ignora
+      if (p.getStatus() == ProcessStatus.TERMINATED) {
         return;
       }
 
-      var nextProcessResult = this.algorithm.selectNextProcess();
-      if (nextProcessResult.isFailure()) {
-        this.logger.error("Failed to select next process: {}", nextProcessResult.getErrors());
-        this.sendError(nextProcessResult.getErrors());
+      // Se o processo acabou de completar NESTE ciclo, ele se torna TERMINATED.
+      // Esta é a transição para o estado final.
+      if (p.isCompleted()) {
+        p.setStatus(ProcessStatus.TERMINATED);
         return;
       }
-      var nextProcess = nextProcessResult.getObject();
 
-      if (previousProcess != null && !Objects.equals(previousProcess.getPid(),
-          nextProcess.getPid())) {
-        this.numOfcontextSwitches++;
+      // Se o processo é o que foi selecionado para este ciclo, ele está RUNNING.
+      if (Objects.nonNull(currentProcess) && p.getPid().equals(currentProcess.getPid())) {
+        p.setStatus(ProcessStatus.RUNNING);
       }
-
-      var event = new StatusUpdateEvent(time, nextProcess.getPid(),
-          List.of(new StatusUpdateEvent.ProcessQueueState(0L, 1, 0)), false,
-          new StatusUpdateEvent.GanttSegment(0L, time, 1));
-
-      this.sendUpdate(event);
-
-      try {
-        Thread.sleep(100);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+      // Se o processo NÃO está executando e NÃO é novo, ele só pode estar READY.
+      // Isso cobre tanto os processos que já estavam na fila quanto aquele que
+      // estava executando e foi preemptado.
+      else if (p.getStatus() == ProcessStatus.NEW) {
+        p.setStatus(ProcessStatus.READY);
       }
+    });
+  }
 
-      previousProcess = nextProcess;
-      time++;
-    }
+
+  private void sendSimulationCompleteEvent(double averageTurnaroundTime,
+      double averageWaitingTime) {
+    var event = SimulationCompletedEvent.builder()
+        .totalContextSwitches(this.numOfContextSwitches)
+        .averageTurnaroundTime(averageTurnaroundTime)
+        .averageWaitingTime(averageWaitingTime)
+        .build();
+
+    this.messagingTemplate.convertAndSend("/process-scheduler/simulation/completed", event);
+  }
+
+
+  private void sendCompleteEvent(Process process) {
+    var event = ProcessCompleteEvent.builder()
+        .pid(process.getPid())
+        .tt(process.getTurnaroundTime())
+        .wt(process.getWaitingTime())
+        .build();
+
+    messagingTemplate.convertAndSend("/process-scheduler/process/completed", event);
 
   }
 
-  private void sendUpdate(StatusUpdateEvent event) {
-    messagingTemplate.convertAndSend("/process-scheduler/updates", event);
+  private void sendStatusUpdateEvent(int time, Long cpuRunningPid, List<Process> readyQueue) {
+    var event = StatusUpdateEvent.builder()
+        .time(time)
+        .cpuRunningPid(cpuRunningPid)
+        .readyQueueState(
+            readyQueue.stream().map(
+                p -> StatusUpdateEvent.ProcessQueueState.builder()
+                    .pid(p.getPid())
+                    .remainingTime(p.getRemainingTime())
+                    .dynamicPriority(p.getDynamicPriority())
+                    .build()
+            ).toList())
+        .build();
+    messagingTemplate.convertAndSend("/process-scheduler/simulation/update", event);
   }
 
   private void sendError(Object errorMessage) {
