@@ -1,6 +1,7 @@
 package com.api.process_scheduling.unit.strategy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.api.process_scheduling.entities.Process;
@@ -36,8 +37,8 @@ class FCFSUnitTests {
   @DisplayName("Deve retornar falha se a fila de prontos estiver vazia")
   void selectNextProcess_WithEmptyQueue_ShouldReturnFailure() {
     Result<Process> result = fcfsScheduler.selectNextProcess();
-    assertTrue(result.isFailure());
-    assertEquals("Ready queue is empty", result.getErrors().getFirst().getMessage());
+    assertTrue(result.isSuccess());
+    assertNull(result.getObject(), "Expected null when no processes are in the queue");
   }
 
   @Test

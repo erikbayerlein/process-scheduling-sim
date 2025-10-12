@@ -33,7 +33,7 @@ public class Process {
 
     this.dynamicPriority = staticPriority;
     this.remainingTime = duration;
-    this.status = ProcessStatus.TO_BE_CREATED;
+    this.status = ProcessStatus.NEW;
     this.waitingTime = 0;
     this.turnaroundTime = 0;
   }
@@ -71,7 +71,8 @@ public class Process {
   @Override
   public String toString() {
     return "Processo[PID=" + pid + ", Criação=" + creationTime + ", Duração=" + duration
-        + ", Restante=" + remainingTime + ", Prio=" + staticPriority + "]";
+        + ", Restante=" + remainingTime + ", Prio=" + dynamicPriority + ", Status=" + status + "]";
+
   }
 
 
