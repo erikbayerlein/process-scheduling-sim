@@ -1,6 +1,7 @@
 package com.api.process_scheduling.dto;
 
 import java.util.List;
+import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 
 
@@ -11,16 +12,18 @@ import org.jetbrains.annotations.NotNull;
  * @param contextSwitch   true se uma troca de contexto ocorreu
  * @param ganttSegment    dados para atualizar o gráfico
  */
+@Builder
 public record StatusUpdateEvent(Integer time, Long cpuRunningPid,
-                                List<ProcessQueueState> readyQueueState,
+                                @NotNull List<ProcessQueueState> readyQueueState,
 
-                                Boolean contextSwitch, @NotNull GanttSegment ganttSegment) {
+                                Boolean contextSwitch, GanttSegment ganttSegment) {
 
   /**
    * @param pid             ID do processo
    * @param remainingTime   tempo restante
    * @param dynamicPriority prioridade dinamica
    */
+  @Builder
   public record ProcessQueueState(Long pid, Integer remainingTime, Integer dynamicPriority
 
   ) {

@@ -6,5 +6,5 @@ package com.api.process_scheduling.enums;
  * considerado estados intermediarios, como novo, esperando ou bloqueado
  */
 public enum ProcessStatus {
-  TO_BE_CREATED, READY, RUNNING, TERMINATED
+  NEW, READY, RUNNING, TERMINATED
 }

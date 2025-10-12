@@ -33,7 +33,7 @@ public class Process {
 
     this.dynamicPriority = staticPriority;
     this.remainingTime = duration;
-    this.status = ProcessStatus.TO_BE_CREATED;
+    this.status = ProcessStatus.NEW;
     this.waitingTime = 0;
     this.turnaroundTime = 0;
   }
