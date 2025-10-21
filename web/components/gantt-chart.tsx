@@ -1,21 +1,23 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type { GanttSegment, Process } from "@/lib/types"
 
 interface GanttChartProps {
-  data: Array<{
-    processId: string
-    start: number
-    end: number
-    color: string
-  }>
+  data: GanttSegment[]
+  processes: Process[]
 }
 
-export function GanttChart({ data }: GanttChartProps) {
+export function GanttChart({ data, processes }: GanttChartProps) {
   if (data.length === 0) return null
 
   const maxTime = Math.max(...data.map((d) => d.end))
   const timeUnits = Array.from({ length: maxTime + 1 }, (_, i) => i)
+
+  const getProcessColor = (pid: number) => {
+    const process = processes.find((p) => Number(p.id) === pid)
+    return process?.color || "#3b82f6"
+  }
 
   return (
     <Card>
@@ -44,18 +46,20 @@ export function GanttChart({ data }: GanttChartProps) {
               {data.map((item, index) => {
                 const width = ((item.end - item.start) / maxTime) * 100
                 const left = (item.start / maxTime) * 100
+                const processLabel = `P${item.processId}`
 
                 return (
                   <div
                     key={index}
-                    className="absolute h-full flex items-center justify-center transition-all hover:opacity-80"
+                    className="absolute h-full flex items-center justify-center transition-all hover:opacity-80 cursor-pointer group"
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
                       backgroundColor: item.color,
                     }}
+                    title={`${processLabel}: ${item.start} → ${item.end}`}
                   >
-                    <span className="text-sm font-bold text-white font-mono drop-shadow-lg">{item.processId}</span>
+                    <span className="text-sm font-bold text-white font-mono drop-shadow-lg">{processLabel}</span>
                   </div>
                 )
               })}
@@ -65,11 +69,16 @@ export function GanttChart({ data }: GanttChartProps) {
           {/* Legend */}
           <div className="flex flex-wrap gap-4 pt-4 border-t border-border">
             {Array.from(new Set(data.map((d) => d.processId))).map((processId) => {
-              const process = data.find((d) => d.processId === processId)
+              const segment = data.find((d) => d.processId === processId)
+              const processLabel = `P${processId}`
+
               return (
                 <div key={processId} className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: process?.color }} />
-                  <span className="text-sm font-mono">{processId}</span>
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: segment?.color || getProcessColor(processId) }}
+                  />
+                  <span className="text-sm font-mono font-medium">{processLabel}</span>
                 </div>
               )
             })}

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Trash2 } from "lucide-react"
-import type { Process } from "@/app/page"
+import type { Process } from "@/lib/types"
 
 interface ProcessTableProps {
   processes: Process[]
@@ -26,8 +26,10 @@ const generateColor = () => {
 
 export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps) {
   const addProcess = () => {
+    const nextId = processes.length > 0 ? Math.max(...processes.map((p) => Number(p.id))) + 1 : 1
+
     const newProcess: Process = {
-      id: `P${processes.length + 1}`,
+      id: String(nextId),
       arrivalTime: 0,
       duration: 1,
       priority: 1,
@@ -79,7 +81,7 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-3 w-3 rounded-full" style={{ backgroundColor: process.color }} />
-                          <span className="font-mono font-medium">{process.id}</span>
+                          <span className="font-mono font-medium">P{process.id}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3">

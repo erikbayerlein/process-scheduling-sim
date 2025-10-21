@@ -8,8 +8,16 @@ import { GanttChart } from "@/components/gantt-chart"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Play, Wifi, WifiOff } from "lucide-react"
-import { useWebSocket, type WebSocketMessage } from "@/hooks/use-websocket"
+import { useStompWebSocket } from "@/hooks/use-stomp-websocket"
 import { useToast } from "@/hooks/use-toast"
+import {
+  ALGORITHM_MAP,
+  type Process,
+  type StatusUpdateEvent,
+  type ProcessCompleteEvent,
+  type SimulationCompletedEvent,
+  type GanttSegment,
+} from "@/lib/types"
 
 export type Algorithm =
   | "fcfs"
@@ -20,97 +28,84 @@ export type Algorithm =
   | "priority-preemptive"
   | "priority-non-preemptive"
 
-export interface Process {
-  id: string
-  arrivalTime: number
-  duration: number
-  priority: number
-  color: string
-}
-
-export interface SimulationConfig {
-  algorithm: Algorithm
-  quantum?: number
-  aging?: number
-}
-
-export interface SimulationState {
-  currentProcess: string | null
-  waitQueue: string[]
-  iteration: number
-}
-
-export interface ProcessMetrics {
-  processId: string
-  turnaroundTime: number
-  waitingTime: number
-}
-
-export interface SimulationMetrics {
-  averageTurnaroundTime: number
-  averageWaitingTime: number
-  contextSwitches: number
-}
-
 export default function Home() {
   const [algorithm, setAlgorithm] = useState<Algorithm>("fcfs")
   const [quantum, setQuantum] = useState<number>(2)
   const [aging, setAging] = useState<number>(1)
   const [processes, setProcesses] = useState<Process[]>([])
   const [isSimulating, setIsSimulating] = useState(false)
-  const [simulationState, setSimulationState] = useState<SimulationState | null>(null)
-  const [ganttData, setGanttData] = useState<Array<{ processId: string; start: number; end: number; color: string }>>(
-    [],
-  )
-  const [metrics, setMetrics] = useState<SimulationMetrics | null>(null)
+  const [currentStatus, setCurrentStatus] = useState<StatusUpdateEvent | null>(null)
+  const [ganttData, setGanttData] = useState<GanttSegment[]>([])
+  const [completedProcesses, setCompletedProcesses] = useState<ProcessCompleteEvent[]>([])
+  const [metrics, setMetrics] = useState<SimulationCompletedEvent | null>(null)
   const { toast } = useToast()
 
-  const handleWebSocketMessage = useCallback(
-    (message: WebSocketMessage) => {
-      switch (message.type) {
-        case "state":
-          setSimulationState(message.data)
-          break
+  const handleStatusUpdate = useCallback(
+    (event: StatusUpdateEvent) => {
+      console.log("[v0] Atualizando status:", event)
+      setCurrentStatus(event)
 
-        case "gantt":
-          setGanttData((prev) => [...prev, message.data])
-          break
+      // Atualizar diagrama de Gantt se houver processo em execução
+      if (event.cpuRunningPid !== null) {
+        setGanttData((prev) => {
+          const lastSegment = prev[prev.length - 1]
+          const processColor = processes.find((p) => Number(p.id) === event.cpuRunningPid)?.color || "#3b82f6"
 
-        case "metrics":
-          setMetrics(message.data)
-          break
+          // Se o último segmento é do mesmo processo, estender
+          if (lastSegment && lastSegment.processId === event.cpuRunningPid) {
+            return [...prev.slice(0, -1), { ...lastSegment, end: event.time }]
+          }
 
-        case "complete":
-          setIsSimulating(false)
-          toast({
-            title: "Simulação concluída",
-            description: "Os resultados estão disponíveis abaixo.",
-          })
-          break
-
-        case "error":
-          setIsSimulating(false)
-          toast({
-            title: "Erro na simulação",
-            description: message.data.message || "Ocorreu um erro durante a simulação.",
-            variant: "destructive",
-          })
-          break
-
-        default:
-          console.warn("[v0] Tipo de mensagem desconhecido:", message.type)
+          // Caso contrário, adicionar novo segmento
+          return [
+            ...prev,
+            {
+              processId: event.cpuRunningPid,
+              start: event.time - 1,
+              end: event.time,
+              color: processColor,
+            },
+          ]
+        })
       }
+    },
+    [processes],
+  )
+
+  const handleProcessComplete = useCallback(
+    (event: ProcessCompleteEvent) => {
+      console.log("[v0] Processo concluído:", event)
+      setCompletedProcesses((prev) => [...prev, event])
+      toast({
+        title: "Processo concluído",
+        description: `Processo ${event.pid} finalizado. TT: ${event.tt}, WT: ${event.wt}`,
+      })
     },
     [toast],
   )
 
-  const { isConnected, isConnecting, connect, disconnect, sendMessage } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8000/ws",
-    onMessage: handleWebSocketMessage,
-    onError: () => {
+  const handleSimulationComplete = useCallback(
+    (event: SimulationCompletedEvent) => {
+      console.log("[v0] Simulação concluída:", event)
+      setMetrics(event)
+      setIsSimulating(false)
       toast({
-        title: "Erro de conexão",
-        description: "Não foi possível conectar ao servidor de simulação.",
+        title: "Simulação concluída",
+        description: "Todos os processos foram executados. Confira os resultados abaixo.",
+      })
+    },
+    [toast],
+  )
+
+  const { isConnected, isConnecting, connect, disconnect, startSimulation } = useStompWebSocket({
+    url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8080/ws",
+    onStatusUpdate: handleStatusUpdate,
+    onProcessComplete: handleProcessComplete,
+    onSimulationComplete: handleSimulationComplete,
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: error,
         variant: "destructive",
       })
     },
@@ -142,30 +137,36 @@ export default function Home() {
       return
     }
 
-    setSimulationState(null)
+    if (processes.length === 0) {
+      toast({
+        title: "Nenhum processo",
+        description: "Adicione pelo menos um processo antes de simular.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setCurrentStatus(null)
     setGanttData([])
+    setCompletedProcesses([])
     setMetrics(null)
     setIsSimulating(true)
 
-    const config: SimulationConfig = {
-      algorithm,
-      ...(algorithm === "round-robin" || algorithm === "round-robin-aging" ? { quantum } : {}),
-      ...(algorithm === "round-robin-aging" ? { aging } : {}),
-    }
-
-    const payload = {
-      type: "start_simulation",
-      config,
+    const config = {
+      algorithm: ALGORITHM_MAP[algorithm],
       processes: processes.map((p) => ({
-        id: p.id,
-        arrivalTime: p.arrivalTime,
+        creationTime: p.arrivalTime,
         duration: p.duration,
-        priority: p.priority,
-        color: p.color,
+        staticPriority: p.priority,
       })),
+      config: {
+        quantum: algorithm === "round-robin" || algorithm === "round-robin-aging" ? quantum : undefined,
+        aging: algorithm === "round-robin-aging" ? aging : undefined,
+      },
     }
 
-    const success = sendMessage(payload)
+    console.log("[v0] Iniciando simulação com config:", config)
+    const success = startSimulation(config)
 
     if (!success) {
       setIsSimulating(false)
@@ -250,23 +251,44 @@ export default function Home() {
           </Button>
         </div>
 
-        {simulationState && (
+        {currentStatus && (
           <div className="rounded-lg border border-border bg-card p-4 animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Iteração {simulationState.iteration}</p>
+                <p className="text-sm text-muted-foreground">Tempo: {currentStatus.time}</p>
                 <p className="font-medium">
-                  Processo atual:{" "}
-                  <span className="font-mono text-primary">{simulationState.currentProcess || "Nenhum"}</span>
+                  CPU:{" "}
+                  <span className="font-mono text-primary">
+                    {currentStatus.cpuRunningPid !== null ? `P${currentStatus.cpuRunningPid}` : "Ocioso"}
+                  </span>
                 </p>
               </div>
               <div className="space-y-1 text-right">
-                <p className="text-sm text-muted-foreground">Fila de espera</p>
+                <p className="text-sm text-muted-foreground">Fila de Prontos</p>
                 <p className="font-mono text-sm">
-                  {simulationState.waitQueue.length > 0 ? simulationState.waitQueue.join(", ") : "Vazia"}
+                  {currentStatus.readyQueueState.length > 0
+                    ? currentStatus.readyQueueState.map((p) => `P${p.pid}`).join(", ")
+                    : "Vazia"}
                 </p>
               </div>
             </div>
+            {currentStatus.readyQueueState.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-2">Detalhes da fila:</p>
+                <div className="flex flex-wrap gap-2">
+                  {currentStatus.readyQueueState.map((proc) => (
+                    <div
+                      key={proc.pid}
+                      className="text-xs bg-muted px-2 py-1 rounded font-mono flex items-center gap-2"
+                    >
+                      <span className="font-semibold">P{proc.pid}</span>
+                      <span className="text-muted-foreground">Restante: {proc.remainingTime}</span>
+                      <span className="text-muted-foreground">Prior: {proc.dynamicPriority}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -274,9 +296,15 @@ export default function Home() {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="h-px bg-border" />
 
-            <SimulationResults metrics={metrics} />
+            <SimulationResults
+              metrics={{
+                averageTurnaroundTime: metrics.averageTurnaroundTime,
+                averageWaitingTime: metrics.averageWaitingTime,
+                contextSwitches: metrics.totalContextSwitches,
+              }}
+            />
 
-            <GanttChart data={ganttData} />
+            <GanttChart data={ganttData} processes={processes} />
           </div>
         )}
       </div>
