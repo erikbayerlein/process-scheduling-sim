@@ -51,18 +51,18 @@ export default function Home() {
           const lastSegment = prev[prev.length - 1]
           const processColor = processes.find((p) => Number(p.id) === event.cpuRunningPid)?.color || "#3b82f6"
 
-          // Se o último segmento é do mesmo processo, estender
+          // Se o último segmento é do mesmo processo, estender até o próximo tempo
           if (lastSegment && lastSegment.processId === event.cpuRunningPid) {
-            return [...prev.slice(0, -1), { ...lastSegment, end: event.time }]
+            return [...prev.slice(0, -1), { ...lastSegment, end: event.time + 1 }]
           }
 
-          // Caso contrário, adicionar novo segmento
+          // Caso contrário, adicionar novo segmento de time até time+1
           return [
             ...prev,
             {
               processId: event.cpuRunningPid,
-              start: event.time - 1,
-              end: event.time,
+              start: event.time,
+              end: event.time + 1,
               color: processColor,
             },
           ]
@@ -295,7 +295,6 @@ export default function Home() {
         {metrics && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="h-px bg-border" />
-
             <SimulationResults
               metrics={{
                 averageTurnaroundTime: metrics.averageTurnaroundTime,
@@ -304,7 +303,7 @@ export default function Home() {
               }}
             />
 
-            <GanttChart data={ganttData} processes={processes} />
+            <GanttChart data={ganttData} processes={processes} completedProcesses={completedProcesses} />
           </div>
         )}
       </div>
