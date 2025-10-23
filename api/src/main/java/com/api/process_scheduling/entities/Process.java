@@ -38,6 +38,9 @@ public class Process {
     this.turnaroundTime = 0;
   }
 
+  static public void resetIdCounter() {
+    nextId = 0L;
+  }
 
   /**
    * Simula a execução do processo por um ciclo de tempo.

@@ -52,6 +52,7 @@ public class SchedulerServiceImpl implements SchedulerService {
       this.numOfContextSwitches = 0;
       this.completedProcesses = 0;
       this.totalProcesses = 0;
+      Process.resetIdCounter();
     } catch (Exception e) {
       log.error("Error during cleanup: {}", e.getMessage());
       this.sendError("Error during cleanup: " + e.getMessage());
