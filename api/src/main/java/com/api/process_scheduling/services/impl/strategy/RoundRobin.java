@@ -8,8 +8,8 @@ import org.jetbrains.annotations.NotNull;
 
 
 /**
- * Round Robin non preemptive: cada processo recebe um quantum fixo de tempo para execução. Se o
- * processo não terminar dentro do quantum, ele é colocado no final da fila de prontos.
+ * Round Robin: cada processo recebe um quantum fixo de tempo para execução. Se o
+ * processo não terminar dentro do quantum, ele é preemptado e colocado no final da fila de prontos.
  */
 public class RoundRobin implements schedulingAlgorithm {
 
