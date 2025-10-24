@@ -26,7 +26,7 @@ const generateColor = () => {
 
 export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps) {
   const addProcess = () => {
-    const nextId = processes.length > 0 ? Math.max(...processes.map(p => Number(p.id))) + 1 : 1;
+    const nextId = processes.length > 0 ? Math.max(...processes.map(p => Number(p.id))) + 1 : 0;
 
     const newProcess: Process = {
       id: String(nextId),
