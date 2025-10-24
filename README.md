@@ -1,143 +1,104 @@
 # Process Scheduling Simulator
 
-Simulador de escalonamento de processos com interface web e API REST.
+Simulador de escalonamento de processos com interface web (Next.js) e API
+(Spring Boot) conectados via websocket. O objetivo é demonstrar e visualizar o comportamento de
+diferentes algoritmos de escalonamento de processos.
 
-## 📋 Pré-requisitos
+## Como executar (apenas Docker)
 
-Antes de executar o projeto, certifique-se de ter instalado:
+Pré-requisitos:
 
-- [Docker](https://docs.docker.com/get-docker/) (versão 20.10 ou superior)
-- [Docker Compose](https://docs.docker.com/compose/install/) (versão 2.0 ou superior)
+- Docker
+- Docker Compose
 
-Para verificar se estão instalados corretamente, execute:
-
-```bash
-docker --version
-docker compose version
-```
-
-## 🚀 Como Executar
-
-### 1. Clone o repositório (se ainda não tiver)
-
-```bash
-git clone <url-do-repositorio>
-cd process-scheduling-sim
-```
-
-### 2. Inicie os serviços com Docker Compose
-
-```bash
-docker compose up --build
-```
-
-Este comando irá:
-- Construir as imagens Docker para a API (Spring Boot) e o frontend (Next.js)
-- Iniciar os containers
-- Configurar a rede entre os serviços
-
-### 3. Acesse a aplicação
-
-Após a inicialização (pode levar alguns minutos na primeira vez):
-
-- **Frontend (Web)**: http://localhost:3000
-- **API (Backend)**: http://localhost:8080
-
-## 🛠️ Comandos Úteis
-
-### Executar em segundo plano (modo detached)
+No diretório raiz do projeto, execute:
 
 ```bash
 docker compose up -d
 ```
 
-### Ver logs dos serviços
+Após a inicialização os serviços estarão acessíveis em:
 
-```bash
-# Todos os serviços
-docker compose logs -f
+- Frontend (Web): http://localhost:3000
+- API (Backend): http://localhost:8080
 
-# Apenas a API
-docker compose logs -f api
-
-# Apenas o frontend
-docker compose logs -f web
-```
-
-### Parar os serviços
+Para encerrar os serviços:
 
 ```bash
 docker compose down
 ```
 
-### Parar e remover volumes
+> Observação: este README foi simplificado para mostrar apenas como executar o
+
+## Execução manual (sem Docker)
+
+Se preferir rodar a aplicação localmente sem Docker, siga os passos abaixo.
+
+Pré-requisitos mínimos:
+
+- Java 21 (o projeto da API usa Java 21 conforme `api/pom.xml`)
+- Maven (ou use o wrapper incluído em `./api/mvnw`)
+- Node.js (recomenda-se >= 18) e npm ou pnpm
+
+Recomenda-se abrir dois terminais: um para a API (backend) e outro para o
+frontend (web).
+
+### Rodando a API (Spring Boot)
+
+1. Entre na pasta da API:
 
 ```bash
-docker compose down -v
+cd api
 ```
 
-### Reconstruir as imagens
+2. Usando o wrapper Maven (Linux/macOS):
 
 ```bash
-docker compose build --no-cache
-docker compose up
+./mvnw spring-boot:run
 ```
 
-### Reiniciar um serviço específico
+Ou, se preferir compilar e executar o JAR:
 
 ```bash
-# Reiniciar apenas a API
-docker compose restart api
-
-# Reiniciar apenas o frontend
-docker compose restart web
+./mvnw clean package -DskipTests
+java -jar target/*.jar
 ```
 
-## 🏗️ Arquitetura
+A API por padrão escuta na porta 8080.
 
-O projeto é composto por dois serviços:
+### Rodando o frontend (Next.js)
 
-- **API (Backend)**: Aplicação Spring Boot rodando na porta 8080
-- **Web (Frontend)**: Aplicação Next.js rodando na porta 3000
-
-Os serviços se comunicam através de uma rede Docker interna (`app-network`).
-
-## 🔍 Troubleshooting
-
-### Porta já em uso
-
-Se as portas 3000 ou 8080 já estiverem em uso, você pode:
-
-1. Parar o serviço que está usando a porta
-2. Ou modificar as portas no arquivo `docker-compose.yml`
-
-### Problemas de build
-
-Se houver erros durante o build:
+1. Abra outro terminal e entre na pasta do frontend:
 
 ```bash
-# Limpe os containers e imagens antigas
-docker compose down
-docker system prune -a
-
-# Reconstrua do zero
-docker compose build --no-cache
-docker compose up
+cd web
 ```
 
-### API não responde
-
-Verifique o status do healthcheck:
+2. Instale dependências (ex.: com pnpm ou npm):
 
 ```bash
-docker compose ps
+# com pnpm
+pnpm install
+
+# ou com npm
+npm install
 ```
 
-A API possui um healthcheck que verifica se está saudável antes do frontend iniciar.
+3. Inicie em modo de desenvolvimento:
 
-## 📝 Desenvolvimento
+```bash
+# com pnpm
+pnpm dev
 
-Para desenvolvimento local sem Docker, consulte os READMEs específicos:
+# ou com npm
+npm run dev
+```
 
-- API: `./api/README.md` (ou `./api/HELP.md`)
-- Web: Verifique o `package.json` na pasta `./web`
+O frontend padrão estará disponível em http://localhost:3000 e, por padrão,
+conectará à API rodando em http://localhost:8080 (verifique a URL de websocket
+se necessário nas configurações do frontend).
+
+### Observações
+
+- Execute backend e frontend em terminais separados para desenvolvimento.
+- Se precisar mudar portas ou URLs, verifique as configurações no `application.properties` da API e no código/config do frontend.
