@@ -42,7 +42,6 @@ export default function Home() {
 
   const handleStatusUpdate = useCallback(
     (event: StatusUpdateEvent) => {
-      console.log('[v0] Atualizando status:', event);
       setCurrentStatus(event);
 
       // Atualizar diagrama de Gantt se houver processo em execução
@@ -60,7 +59,7 @@ export default function Home() {
           return [
             ...prev,
             {
-              processId: event.cpuRunningPid,
+              processId: event.cpuRunningPid as number,
               start: event.time,
               end: event.time + 1,
               color: processColor,
@@ -74,7 +73,6 @@ export default function Home() {
 
   const handleProcessComplete = useCallback(
     (event: ProcessCompleteEvent) => {
-      console.log('[v0] Processo concluído:', event);
       setCompletedProcesses(prev => [...prev, event]);
       toast({
         title: 'Processo concluído',
@@ -86,7 +84,6 @@ export default function Home() {
 
   const handleSimulationComplete = useCallback(
     (event: SimulationCompletedEvent) => {
-      console.log('[v0] Simulação concluída:', event);
       setMetrics(event);
       setIsSimulating(false);
       toast({
@@ -165,7 +162,6 @@ export default function Home() {
       },
     };
 
-    console.log('[v0] Iniciando simulação com config:', config);
     const success = startSimulation(config);
 
     if (!success) {

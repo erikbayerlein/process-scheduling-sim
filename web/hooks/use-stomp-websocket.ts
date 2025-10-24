@@ -35,25 +35,19 @@ export function useStompWebSocket({
 
   const connect = useCallback(() => {
     if (clientRef.current?.connected || isConnecting) {
-      console.log('[v0] Já conectado ou conectando');
       return;
     }
 
     setIsConnecting(true);
-    console.log('[v0] Iniciando conexão STOMP...');
 
     const client = new Client({
       brokerURL: url,
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
-      debug: str => {
-        console.log('[v0] STOMP Debug:', str);
-      },
     });
 
     client.onConnect = () => {
-      console.log('[v0] STOMP conectado com sucesso');
       setIsConnected(true);
       setIsConnecting(false);
       onOpen?.();
@@ -65,11 +59,8 @@ export function useStompWebSocket({
       const statusSub = client.subscribe('/process-scheduler/simulation/update', (message: IMessage) => {
         try {
           const event: StatusUpdateEvent = JSON.parse(message.body);
-          console.log('[v0] Status update recebido:', event);
           onStatusUpdate?.(event);
-        } catch (error) {
-          console.error('[v0] Erro ao parsear status update:', error);
-        }
+        } catch (error) {}
       });
       subscriptions.push(statusSub);
 
@@ -77,11 +68,8 @@ export function useStompWebSocket({
       const completeSub = client.subscribe('/process-scheduler/process/completed', (message: IMessage) => {
         try {
           const event: ProcessCompleteEvent = JSON.parse(message.body);
-          console.log('[v0] Process complete recebido:', event);
           onProcessComplete?.(event);
-        } catch (error) {
-          console.error('[v0] Erro ao parsear process complete:', error);
-        }
+        } catch (error) {}
       });
       subscriptions.push(completeSub);
 
@@ -89,17 +77,13 @@ export function useStompWebSocket({
       const simCompleteSub = client.subscribe('/process-scheduler/simulation/completed', (message: IMessage) => {
         try {
           const event: SimulationCompletedEvent = JSON.parse(message.body);
-          console.log('[v0] Simulation complete recebido:', event);
           onSimulationComplete?.(event);
-        } catch (error) {
-          console.error('[v0] Erro ao parsear simulation complete:', error);
-        }
+        } catch (error) {}
       });
       subscriptions.push(simCompleteSub);
 
       // 4. Erros
       const errorSub = client.subscribe('/process-scheduler/errors', (message: IMessage) => {
-        console.error('[v0] Erro recebido do servidor:', message.body);
         onError?.(message.body);
       });
       subscriptions.push(errorSub);
@@ -108,22 +92,18 @@ export function useStompWebSocket({
     };
 
     client.onStompError = frame => {
-      console.error('[v0] Erro STOMP:', frame.headers['message']);
-      console.error('[v0] Detalhes:', frame.body);
       setIsConnected(false);
       setIsConnecting(false);
       onError?.(frame.headers['message'] || 'Erro desconhecido');
     };
 
     client.onWebSocketClose = () => {
-      console.log('[v0] WebSocket fechado');
       setIsConnected(false);
       setIsConnecting(false);
       onClose?.();
     };
 
     client.onWebSocketError = event => {
-      console.error('[v0] Erro no WebSocket:', event);
       setIsConnecting(false);
       onError?.('Erro de conexão WebSocket');
     };
@@ -133,8 +113,6 @@ export function useStompWebSocket({
   }, [url, onStatusUpdate, onProcessComplete, onSimulationComplete, onError, onOpen, onClose, isConnecting]);
 
   const disconnect = useCallback(() => {
-    console.log('[v0] Desconectando STOMP...');
-
     // Cancelar inscrições
     subscriptionsRef.current.forEach(sub => sub.unsubscribe());
     subscriptionsRef.current = [];
@@ -151,12 +129,10 @@ export function useStompWebSocket({
 
   const startSimulation = useCallback((config: SimulationConfigMessage) => {
     if (!clientRef.current?.connected) {
-      console.warn('[v0] Cliente não conectado. Não é possível enviar mensagem.');
       return false;
     }
 
     try {
-      console.log('[v0] Enviando configuração de simulação:', config);
       clientRef.current.publish({
         destination: '/app/start',
         body: JSON.stringify(config),
@@ -166,7 +142,6 @@ export function useStompWebSocket({
       });
       return true;
     } catch (error) {
-      console.error('[v0] Erro ao enviar mensagem:', error);
       return false;
     }
   }, []);

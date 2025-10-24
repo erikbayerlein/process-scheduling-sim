@@ -19,7 +19,7 @@ export function useWebSocket({ url, onMessage, onError, onOpen, onClose }: UseWe
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
@@ -34,7 +34,6 @@ export function useWebSocket({ url, onMessage, onError, onOpen, onClose }: UseWe
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
-        console.log('[v0] WebSocket conectado');
         setIsConnected(true);
         setIsConnecting(false);
         reconnectAttemptsRef.current = 0;
@@ -44,20 +43,15 @@ export function useWebSocket({ url, onMessage, onError, onOpen, onClose }: UseWe
       ws.onmessage = event => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-          console.log('[v0] Mensagem recebida:', message);
           onMessage?.(message);
-        } catch (error) {
-          console.error('[v0] Erro ao parsear mensagem:', error);
-        }
+        } catch (error) {}
       };
 
       ws.onerror = error => {
-        console.error('[v0] Erro no WebSocket:', error);
         onError?.(error);
       };
 
       ws.onclose = () => {
-        console.log('[v0] WebSocket desconectado');
         setIsConnected(false);
         setIsConnecting(false);
         wsRef.current = null;
@@ -67,19 +61,15 @@ export function useWebSocket({ url, onMessage, onError, onOpen, onClose }: UseWe
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
-          console.log(`[v0] Tentando reconectar em ${delay}ms (tentativa ${reconnectAttemptsRef.current})`);
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, delay);
-        } else {
-          console.error('[v0] Número máximo de tentativas de reconexão atingido');
         }
       };
 
       wsRef.current = ws;
     } catch (error) {
-      console.error('[v0] Erro ao criar WebSocket:', error);
       setIsConnecting(false);
     }
   }, [url, onMessage, onError, onOpen, onClose]);
@@ -102,11 +92,9 @@ export function useWebSocket({ url, onMessage, onError, onOpen, onClose }: UseWe
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-      console.log('[v0] Enviando mensagem:', message);
       wsRef.current.send(messageStr);
       return true;
     } else {
-      console.warn('[v0] WebSocket não está conectado. Mensagem não enviada.');
       return false;
     }
   }, []);
