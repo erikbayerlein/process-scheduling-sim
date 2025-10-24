@@ -95,7 +95,7 @@ export default function Home() {
   );
 
   const { isConnected, isConnecting, connect, disconnect, startSimulation } = useStompWebSocket({
-    url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'ws://localhost:8080/ws',
+    url: process.env.NEXT_PUBLIC_API_URL || 'ws://localhost:8080/ws',
     onStatusUpdate: handleStatusUpdate,
     onProcessComplete: handleProcessComplete,
     onSimulationComplete: handleSimulationComplete,
