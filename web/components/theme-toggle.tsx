@@ -1,12 +1,17 @@
-"use client"
-import { Moon, Sun, Monitor } from "lucide-react"
-import { useTheme } from "next-themes"
+'use client';
+import { Moon, Sun, Monitor } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function ThemeToggle() {
-  const { setTheme, theme } = useTheme()
+  const { setTheme, theme } = useTheme();
 
   return (
     <DropdownMenu>
@@ -18,19 +23,19 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2">
+        <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2">
           <Sun className="h-4 w-4" />
           <span>Claro</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2">
+        <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2">
           <Moon className="h-4 w-4" />
           <span>Escuro</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2">
+        <DropdownMenuItem onClick={() => setTheme('system')} className="gap-2">
           <Monitor className="h-4 w-4" />
           <span>Sistema</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

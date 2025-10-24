@@ -1,32 +1,32 @@
-"use client"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Plus, Trash2 } from "lucide-react"
-import type { Process } from "@/lib/types"
+'use client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Plus, Trash2 } from 'lucide-react';
+import type { Process } from '@/lib/types';
 
 interface ProcessTableProps {
-  processes: Process[]
-  onProcessesChange: (processes: Process[]) => void
+  processes: Process[];
+  onProcessesChange: (processes: Process[]) => void;
 }
 
 const generateColor = () => {
   const colors = [
-    "#8b5cf6", // purple
-    "#06b6d4", // cyan
-    "#10b981", // green
-    "#f59e0b", // amber
-    "#ef4444", // red
-    "#ec4899", // pink
-    "#6366f1", // indigo
-    "#14b8a6", // teal
-  ]
-  return colors[Math.floor(Math.random() * colors.length)]
-}
+    '#8b5cf6', // purple
+    '#06b6d4', // cyan
+    '#10b981', // green
+    '#f59e0b', // amber
+    '#ef4444', // red
+    '#ec4899', // pink
+    '#6366f1', // indigo
+    '#14b8a6', // teal
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+};
 
 export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps) {
   const addProcess = () => {
-    const nextId = processes.length > 0 ? Math.max(...processes.map((p) => Number(p.id))) + 1 : 1
+    const nextId = processes.length > 0 ? Math.max(...processes.map(p => Number(p.id))) + 1 : 1;
 
     const newProcess: Process = {
       id: String(nextId),
@@ -34,17 +34,17 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
       duration: 1,
       priority: 1,
       color: generateColor(),
-    }
-    onProcessesChange([...processes, newProcess])
-  }
+    };
+    onProcessesChange([...processes, newProcess]);
+  };
 
   const removeProcess = (id: string) => {
-    onProcessesChange(processes.filter((p) => p.id !== id))
-  }
+    onProcessesChange(processes.filter(p => p.id !== id));
+  };
 
   const updateProcess = (id: string, field: keyof Process, value: number) => {
-    onProcessesChange(processes.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
-  }
+    onProcessesChange(processes.map(p => (p.id === id ? { ...p, [field]: value } : p)));
+  };
 
   return (
     <Card>
@@ -73,11 +73,10 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
                     </td>
                   </tr>
                 ) : (
-                  processes.map((process) => (
+                  processes.map(process => (
                     <tr
                       key={process.id}
-                      className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors"
-                    >
+                      className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="h-3 w-3 rounded-full" style={{ backgroundColor: process.color }} />
@@ -89,7 +88,7 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
                           type="number"
                           min="0"
                           value={process.arrivalTime}
-                          onChange={(e) => updateProcess(process.id, "arrivalTime", Number(e.target.value))}
+                          onChange={e => updateProcess(process.id, 'arrivalTime', Number(e.target.value))}
                           className="w-24 h-8 font-mono"
                         />
                       </td>
@@ -98,7 +97,7 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
                           type="number"
                           min="1"
                           value={process.duration}
-                          onChange={(e) => updateProcess(process.id, "duration", Number(e.target.value))}
+                          onChange={e => updateProcess(process.id, 'duration', Number(e.target.value))}
                           className="w-24 h-8 font-mono"
                         />
                       </td>
@@ -107,7 +106,7 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
                           type="number"
                           min="1"
                           value={process.priority}
-                          onChange={(e) => updateProcess(process.id, "priority", Number(e.target.value))}
+                          onChange={e => updateProcess(process.id, 'priority', Number(e.target.value))}
                           className="w-24 h-8 font-mono"
                         />
                       </td>
@@ -116,8 +115,7 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
                           variant="ghost"
                           size="icon"
                           onClick={() => removeProcess(process.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
@@ -135,5 +133,5 @@ export function ProcessTable({ processes, onProcessesChange }: ProcessTableProps
         </Button>
       </CardContent>
     </Card>
-  )
+  );
 }

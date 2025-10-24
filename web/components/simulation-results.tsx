@@ -1,11 +1,11 @@
-"use client"
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Clock, Timer, ArrowLeftRight } from "lucide-react"
-import type { SimulationMetrics } from "@/app/page"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Clock, Timer, ArrowLeftRight } from 'lucide-react';
+import type { SimulationMetrics } from '@/app/page';
 
 interface SimulationResultsProps {
-  metrics: SimulationMetrics
+  metrics: SimulationMetrics;
 }
 
 export function SimulationResults({ metrics }: SimulationResultsProps) {
@@ -51,5 +51,5 @@ export function SimulationResults({ metrics }: SimulationResultsProps) {
         </Card>
       </div>
     </div>
-  )
+  );
 }
