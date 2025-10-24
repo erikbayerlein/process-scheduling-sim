@@ -4,6 +4,12 @@ Simulador de escalonamento de processos com interface web (Next.js) e API
 (Spring Boot) conectados via websocket. O objetivo é demonstrar e visualizar o comportamento de
 diferentes algoritmos de escalonamento de processos.
 
+# Links Úteis
+- Repositorio: https://github.com/erikbayerlein/process-scheduling-sim
+- Live Demo: https://process-scheduling-simulator.flemis.cloud/
+> Observação:
+Caso encontre problemas para se conectar à API no Live Demo, teste a execução local utilizando o Docker Compose.
+
 ## Como executar (apenas Docker)
 
 Pré-requisitos:
